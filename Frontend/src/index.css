@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colores principales */
+  --color-app-bg: #0f172a;
+  --color-app-surface: #1e293b;
+  --color-app-text: #e2e8f0;
+  --color-app-muted: #94a3b8;
+  --color-app-border: #334155;
+
+  /* Colores de Potion Lab */
+  --color-purple-soft: #312e81;
+  --color-purple-accent: #a78bfa;
+
+  /* Bordes */
+  --radius-card: 1rem;
+  --radius-button: 0.75rem;
+
+  /* Sombras */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.5);
+
+  /* Animación */
+  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app-bg);
+  color: var(--color-app-text);
+}

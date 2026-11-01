@@ -4,7 +4,7 @@ Aplicación web de gremios de alquimistas. Los gremios proponen fórmulas, los m
 
 ## URLs públicas
 
-- Frontend (Vercel): URL_DEL_FRONTEND
+- Frontend (Vercel): https://potion-lab-beryl.vercel.app
 - Backend (Render): https://backend-entrega-2.onrender.com
 - Swagger: https://backend-entrega-2.onrender.com/api-docs
 
@@ -42,9 +42,9 @@ Otros comandos: `npm run build`, `npm run preview`, `npm run lint`.
 
 ## Despliegue en Vercel
 
-1. Importar el repositorio y usar `Frontend` como Root Directory.
+1. Desde la carpeta `Frontend`, ejecutar `npx vercel` y luego `npx vercel --prod` (o importar el repositorio en Vercel con `Frontend` como Root Directory).
 2. Definir `VITE_API_URL` con la URL del backend más `/api` (se lee en el build: si cambia, hay que redesplegar).
-3. `vercel.json` ya redirige todas las rutas a `index.html` para react-router.
+3. `vercel.json` redirige todas las rutas a `index.html` para react-router.
 4. Copiar la URL de Vercel en `FRONTEND_URL` del backend y redesplegarlo.
 
 ## Arquitectura

@@ -13,6 +13,7 @@ function FormulaForm({ onCreateFormula, canCreate }) {
   const [difficulty, setDifficulty] = useState("1");
   const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   // Límites de fecha: desde mañana hasta dentro de 7 días
   const hoy = new Date();
@@ -22,10 +23,12 @@ function FormulaForm({ onCreateFormula, canCreate }) {
   fechaMaxima.setDate(fechaMaxima.getDate() + 7);
 
   function aFechaInput(fecha) {
-    return fecha.toISOString().slice(0, 10);
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+    return `${fecha.getFullYear()}-${mes}-${dia}`;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!user || !canCreate) return;
@@ -37,10 +40,20 @@ function FormulaForm({ onCreateFormula, canCreate }) {
       return;
     }
 
+    if (name.trim().length < 3) {
+      setError("El nombre debe tener al menos 3 caracteres.");
+      return;
+    }
+
+    if (effect.trim().length < 5) {
+      setError("El efecto debe tener al menos 5 caracteres.");
+      return;
+    }
+
     const hoySinHora = new Date();
     hoySinHora.setHours(0, 0, 0, 0);
 
-    const fechaLimite = new Date(endDate);
+    const fechaLimite = new Date(`${endDate}T00:00:00`);
     const maxFecha = new Date(hoySinHora);
     maxFecha.setDate(maxFecha.getDate() + 7);
 
@@ -54,54 +67,23 @@ function FormulaForm({ onCreateFormula, canCreate }) {
       return;
     }
 
-    const newFormula = {
-      id: Date.now(),
+    setEnviando(true);
+
+    const creada = await onCreateFormula({
       name: name.trim(),
       effect: effect.trim(),
       difficulty: Number(difficulty),
-      state: "Proposal",
       endDate: endDate,
-      createdBy: user.id,
-      createdByName: user.name,
+    });
 
-      stateHistory: [
-        {
-          state: "Proposal",
-          changedAt: new Date().toISOString(),
-          changedBy: user.name,
-        },
-        
-      ],
-            votes: {
-        ingredient: {},
-        method: {},
-        flask: {},
-      },
+    setEnviando(false);
 
-      categories: {
-        ingredient: {
-          name: "Ingrediente base",
-          options: ["Raíz de Mandrágora", "Polvo de Estrellas"],
-        },
-
-        method: {
-          name: "Método de calentamiento",
-          options: ["Llama Azul", "Baño de Agua Arcana"],
-        },
-
-        flask: {
-          name: "Tipo de frasco",
-          options: ["Cristal Lunar", "Cráneo de Plata"],
-        },
-      },
-    };
-
-    onCreateFormula(newFormula);
-
-    setName("");
-    setEffect("");
-    setDifficulty("1");
-    setEndDate("");
+    if (creada) {
+      setName("");
+      setEffect("");
+      setDifficulty("1");
+      setEndDate("");
+    }
   }
 
   if (!user) {
@@ -258,9 +240,10 @@ function FormulaForm({ onCreateFormula, canCreate }) {
 
         <button
           type="submit"
-          className="bg-purple-accent text-white px-5 py-2.5 rounded-button font-semibold hover:opacity-90 transition"
+          disabled={enviando}
+          className="bg-purple-accent text-white px-5 py-2.5 rounded-button font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Crear fórmula
+          {enviando ? "Creando..." : "Crear fórmula"}
         </button>
 
       </form>

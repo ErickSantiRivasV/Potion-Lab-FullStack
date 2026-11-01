@@ -70,6 +70,20 @@ const changeFormulaState = asyncHandler(async (req, res) => {
   });
 });
 
+const vetoFormula = asyncHandler(async (req, res) => {
+  const formula = await formulaService.usarVeto(
+    req.params.id,
+    req.body,
+    req.user,
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Veto registrado',
+    formula,
+  });
+});
+
 module.exports = {
   getFormulas,
   getFormulaById,
@@ -78,4 +92,5 @@ module.exports = {
   deleteFormula,
   voteFormula,
   changeFormulaState,
+  vetoFormula,
 };

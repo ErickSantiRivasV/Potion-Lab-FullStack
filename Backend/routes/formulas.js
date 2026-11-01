@@ -8,6 +8,7 @@ const {
   deleteFormula,
   voteFormula,
   changeFormulaState,
+  vetoFormula,
 } = require('../controllers/formulaController');
 const { verificarToken } = require('../middlewares/auth');
 const { verificarValidaciones } = require('../middlewares/validators');
@@ -397,6 +398,45 @@ router.patch(
   validarEstado,
   verificarValidaciones,
   changeFormulaState,
+);
+
+/**
+ * @swagger
+ * /api/formulas/{id}/veto:
+ *   post:
+ *     summary: Veto del Taster Oficial sobre una categoría (una vez por fórmula, estado Closed)
+ *     tags: [Fórmulas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VotoFormula'
+ *     responses:
+ *       200:
+ *         description: Veto registrado
+ *       400:
+ *         description: Veto ya usado, estado incorrecto u opción inválida
+ *       401:
+ *         description: Token ausente o inválido
+ *       403:
+ *         description: No eres el Taster Oficial del gremio
+ *       404:
+ *         description: Fórmula no encontrada
+ */
+router.post(
+  '/:id/veto',
+  validarId,
+  validarVoto,
+  verificarValidaciones,
+  vetoFormula,
 );
 
 module.exports = router;

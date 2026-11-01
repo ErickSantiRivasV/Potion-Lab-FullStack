@@ -88,6 +88,30 @@ export function mapearVotos(votos) {
   return resultado;
 }
 
+function nombreDe(referencia) {
+  return referencia && typeof referencia === "object"
+    ? referencia.nombre || ""
+    : "";
+}
+
+function mapearHistorial(historial) {
+  return (historial || []).map((entrada) => ({
+    state: entrada.state,
+    changedAt: entrada.changedAt,
+    changedBy: nombreDe(entrada.changedBy),
+  }));
+}
+
+function mapearVeto(formula) {
+  if (!formula.vetoUsed || !formula.vetoDetails) return null;
+
+  return {
+    category: formula.vetoDetails.category,
+    chosenOption: formula.vetoDetails.chosenOption,
+    by: nombreDe(formula.vetoDetails.by),
+  };
+}
+
 export function mapearFormula(formula) {
   const gremioPoblado = formula.guild && typeof formula.guild === "object";
   const creadorPoblado =
@@ -104,11 +128,11 @@ export function mapearFormula(formula) {
     endDate: soloFecha(formula.endDate),
     createdBy: idDe(formula.createdBy),
     createdByName: creadorPoblado ? formula.createdBy.nombre : "",
-    stateHistory: formula.stateHistory || [],
+    stateHistory: mapearHistorial(formula.stateHistory),
     votes: mapearVotos(formula.votes),
     categories: CATEGORIAS,
     vetoUsed: Boolean(formula.vetoUsed),
-    vetoDetails: formula.vetoDetails || null,
+    vetoDetails: mapearVeto(formula),
     finalPotion:
       formula.finalPotion && formula.finalPotion.finalName
         ? formula.finalPotion

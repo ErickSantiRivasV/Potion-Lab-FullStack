@@ -272,10 +272,12 @@ function GuildDetail() {
       });
 
       setFormulas((anteriores) => [creada, ...anteriores]);
+      return true;
     } catch (e) {
       setErrorFormula(
         obtenerMensajeError(e, "No fue posible crear la fórmula."),
       );
+      return false;
     }
   }
 

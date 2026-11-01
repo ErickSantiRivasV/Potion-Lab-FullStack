@@ -2,38 +2,37 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../components/NavBarFinal";
 import Card from "../components/Card";
-import guildsIniciales from "../data/guilds";
-import formulasIniciales from "../data/formulas";
+import { formulaService } from "../services/formulaService";
+import { obtenerMensajeError } from "../utils/errores";
 
 function Grimoire() {
   const [pociones, setPociones] = useState([]);
   const [busqueda, setBusqueda] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
 
-  // El grimorio junta, de todos los gremios, las fórmulas ya destiladas
   useEffect(() => {
-    const guildsGuardados = localStorage.getItem("guilds");
-    const formulasGuardadas = localStorage.getItem("formulas");
+    let activo = true;
 
-    const guilds = guildsGuardados
-      ? JSON.parse(guildsGuardados)
-      : guildsIniciales;
-
-    const formulas = formulasGuardadas
-      ? JSON.parse(formulasGuardadas)
-      : formulasIniciales;
-
-    const distiladas = formulas
-      .filter((formula) => formula.state === "Distilled" && formula.finalPotion)
-      .map((formula) => {
-        const guild = guilds.find((g) => g.id === formula.guildId);
-
-        return {
-          ...formula,
-          guildName: guild ? guild.name : "Gremio desconocido",
-        };
+    formulaService
+      .listar({ state: "Distilled" })
+      .then((lista) => {
+        if (activo) setPociones(lista.filter((f) => f.finalPotion));
+      })
+      .catch((e) => {
+        if (activo) {
+          setError(
+            obtenerMensajeError(e, "No fue posible cargar el grimorio."),
+          );
+        }
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
       });
 
-    setPociones(distiladas);
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const textoBusqueda = busqueda.trim().toLowerCase();
@@ -74,13 +73,27 @@ function Grimoire() {
             className="w-full mt-6 p-3 rounded-button border border-app-border bg-app-surface text-app-text"
           />
 
-          {pocionesFiltradas.length === 0 ? (
+          {cargando && (
+            <p className="text-app-muted mt-6" role="status">
+              Cargando grimorio...
+            </p>
+          )}
+
+          {!cargando && error && (
+            <p className="text-red-500 mt-6" role="alert">
+              {error}
+            </p>
+          )}
+
+          {!cargando && !error && pocionesFiltradas.length === 0 && (
             <p className="text-app-muted mt-6">
               {pociones.length === 0
                 ? "Todavía no hay pociones destiladas."
                 : "Ninguna poción coincide con tu búsqueda."}
             </p>
-          ) : (
+          )}
+
+          {!cargando && !error && pocionesFiltradas.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2 mt-6">
               {pocionesFiltradas.map((pocion) => (
                 <Card key={pocion.id} className="p-5">
@@ -89,7 +102,7 @@ function Grimoire() {
                   </h2>
 
                   <p className="text-sm text-purple-accent mt-1">
-                    {pocion.guildName}
+                    {pocion.guildName || "Gremio desconocido"}
                   </p>
 
                   <p className="text-app-muted mt-2">

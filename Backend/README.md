@@ -129,7 +129,11 @@ Todas las rutas de gremios y fórmulas requieren JWT (`Authorization: Bearer <to
 - `POST /api/formulas/:id/vote`: vota en una categoría (`ingredient`, `method` o `flask`) con una opción válida. Solo miembros y solo en `VotingOpen`. Un usuario tiene un voto por categoría; si vota de nuevo, se reemplaza.
 - `PATCH /api/formulas/:id/state`: avanza el estado (`Proposal` → `VotingOpen` → `Closed` → `Distilled`) y registra el cambio en `stateHistory`. Pueden hacerlo el creador, el Grandmaster, los Senior Alchemist y los admin.
 
-Al pasar a `Distilled` se calcula la poción final: en cada categoría gana la opción con más votos y, en caso de empate, decide el voto del Grandmaster. Para destilar debe haber al menos un voto en las tres categorías. El peso de votos por especialidad y rol del frontend queda para la Entrega 3.
+- `POST /api/formulas/:id/veto`: veto del Taster Oficial del gremio (`category`, `option`). Solo una vez por fórmula y solo en `Closed`. La categoría vetada toma la opción elegida al destilar.
+
+Las fórmulas en `VotingOpen` pasan solas a `Closed` cuando se consultan después de su `endDate`.
+
+Al pasar a `Distilled` el backend calcula la poción final. Cada voto pesa 1; los miembros con especialidad Brewing pesan x1.2 en todas las categorías, Botany x1.2 en `ingredient`, Runes x1.2 en `method` y Alchemy x1.2 en `flask`; el rol de gremio `Taster` multiplica el peso por 2. En cada categoría gana la opción con más peso; el empate lo decide el voto del Taster Oficial, luego el del Grandmaster y, si ninguno votó, al azar. Para destilar debe haber votos en las tres categorías (o un veto). Se guardan en `finalPotion`: `finalName`, `winners`, `realDifficulty` (dificultad base + peso ganador de ingrediente + peso ganador de método) y `rarity` (`realDifficulty` x 10 + peso ingrediente x 3 + peso método x 2).
 
 ### Cuentas de prueba (seed)
 

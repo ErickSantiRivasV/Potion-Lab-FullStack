@@ -54,10 +54,12 @@ function Guilds() {
       });
 
       setGuilds((anteriores) => [creado, ...anteriores]);
+      return true;
     } catch (e) {
       setErrorCreacion(
         obtenerMensajeError(e, "No fue posible crear el gremio."),
       );
+      return false;
     }
   }
 

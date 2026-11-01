@@ -25,37 +25,28 @@ function GuildForm({ onCreateGuild }) {
     return codigo;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!user) return;
     if (name.trim() === "") return;
 
     const newGuild = {
-      id: Date.now(),
-      name: name,
-      motto: motto,
+      name: name.trim(),
+      motto: motto.trim(),
       emblem: emblem || "🧪",
       type: type,
       inviteCode: type === "Private" ? generarCodigo() : null,
-      // El creador queda automáticamente como Grandmaster del gremio
-      members: [
-        {
-          id: user.id,
-          name: user.name,
-          specialty: user.specialty,
-          role: "Grandmaster",
-          joinDate: new Date().toISOString().slice(0, 10),
-        },
-      ],
     };
 
-    onCreateGuild(newGuild);
+    const creado = await onCreateGuild(newGuild);
 
-    setName("");
-    setMotto("");
-    setEmblem("");
-    setType("Public");
+    if (creado) {
+      setName("");
+      setMotto("");
+      setEmblem("");
+      setType("Public");
+    }
   }
 
   if (!user) {

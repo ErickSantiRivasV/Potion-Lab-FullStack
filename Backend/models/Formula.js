@@ -80,9 +80,16 @@ const formulaSchema = new mongoose.Schema(
     },
     stateHistory: { type: [historialSchema], default: [] },
     votes: { type: [votoSchema], default: [] },
-    // Se llena al destilar la fórmula
+    vetoUsed: { type: Boolean, default: false },
+    vetoDetails: {
+      category: { type: String, enum: NOMBRES_CATEGORIAS },
+      chosenOption: String,
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    },
     finalPotion: {
       finalName: String,
+      realDifficulty: Number,
+      rarity: Number,
       winners: {
         ingredient: String,
         method: String,

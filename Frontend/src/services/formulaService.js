@@ -44,6 +44,10 @@ export const formulaService = {
     return mapearFormula(respuesta.data.formula);
   },
 
+  usarVeto: async (id, categoria, opcion) => {
+    const r = await api.post(`/formulas/${id}/veto`, { category: categoria, option: opcion });
+    return mapearFormula(r.data.formula);
+  },
   cambiarEstado: async (id, estado) => {
     const respuesta = await api.patch(`/formulas/${id}/state`, {
       state: estado,

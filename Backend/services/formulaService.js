@@ -1,5 +1,6 @@
 const Formula = require('../models/Formula');
 const Guild = require('../models/Gremio');
+const User = require('../models/Usuario');
 const {
   ESTADOS_FORMULA,
   CATEGORIAS,
@@ -55,6 +56,8 @@ async function buscarFormula(id) {
 async function poblar(formula) {
   await formula.populate('guild', 'name emblem type');
   await formula.populate('createdBy', 'nombre specialty avatar');
+  await formula.populate('stateHistory.changedBy', 'nombre');
+  await formula.populate('vetoDetails.by', 'nombre');
 
   return formula;
 }
@@ -82,10 +85,14 @@ async function getAllFormulas({ guildId, state }, usuario) {
     }
   }
 
-  return await Formula.find(filtro)
+  const formulas = await Formula.find(filtro)
     .populate('guild', 'name emblem type')
     .populate('createdBy', 'nombre specialty avatar')
     .sort({ createdAt: -1 });
+
+  await Promise.all(formulas.map((f) => cerrarSiVencida(f)));
+
+  return formulas;
 }
 
 async function getFormulaById(id, usuario) {
@@ -93,6 +100,8 @@ async function getFormulaById(id, usuario) {
   const gremio = await buscarGremio(formula.guild);
 
   verificarAcceso(gremio, usuario);
+
+  await cerrarSiVencida(formula);
 
   return await poblar(formula);
 }
@@ -213,43 +222,189 @@ async function votar(id, { category, option }, usuario) {
   return await poblar(formula);
 }
 
-// Gana la opción con más votos. En empate decide el voto del Grandmaster.
-// (El peso por especialidad/rol del frontend queda para la Entrega 3.)
-function calcularGanadores(formula, gremio) {
-  const grandmaster = gremio.members.find((m) => m.role === 'Grandmaster');
+const MARGEN = 1e-9;
+
+function pesoDeVoto(miembro, categoria) {
+  let peso = 1;
+
+  if (miembro.specialty === 'Brewing') {
+    peso *= 1.2;
+  } else if (
+    (categoria === 'ingredient' && miembro.specialty === 'Botany') ||
+    (categoria === 'method' && miembro.specialty === 'Runes') ||
+    (categoria === 'flask' && miembro.specialty === 'Alchemy')
+  ) {
+    peso *= 1.2;
+  }
+
+  if (miembro.role === 'Taster') {
+    peso *= 2;
+  }
+
+  return peso;
+}
+
+function redondear(valor) {
+  return Number(valor.toFixed(2));
+}
+
+function resolverGanadores(formula, miembros) {
   const ganadores = {};
+  const pesos = {};
   const sinVotos = [];
 
   NOMBRES_CATEGORIAS.forEach((categoria) => {
-    const votos = formula.votes.filter((v) => v.category === categoria);
+    const opciones = CATEGORIAS[categoria].options;
+    const totales = {};
+    opciones.forEach((o) => {
+      totales[o] = 0;
+    });
 
-    if (votos.length === 0) {
+    const votos = formula.votes.filter((v) => v.category === categoria);
+    let votosValidos = 0;
+
+    votos.forEach((v) => {
+      const miembro = miembros[v.user.toString()];
+
+      if (!miembro || totales[v.option] === undefined) return;
+
+      totales[v.option] += pesoDeVoto(miembro, categoria);
+      votosValidos += 1;
+    });
+
+    const veto =
+      formula.vetoUsed &&
+      formula.vetoDetails &&
+      formula.vetoDetails.category === categoria
+        ? formula.vetoDetails.chosenOption
+        : null;
+
+    if (veto) {
+      ganadores[categoria] = veto;
+      pesos[categoria] = totales[veto] || 0;
+      return;
+    }
+
+    if (votosValidos === 0) {
       sinVotos.push(categoria);
       return;
     }
 
-    const conteo = {};
-    votos.forEach((v) => {
-      conteo[v.option] = (conteo[v.option] || 0) + 1;
-    });
+    const [a, b] = opciones;
+    let ganador;
 
-    const maximo = Math.max(...Object.values(conteo));
-    const empatadas = Object.keys(conteo).filter((o) => conteo[o] === maximo);
+    if (Math.abs(totales[a] - totales[b]) > MARGEN) {
+      ganador = totales[a] > totales[b] ? a : b;
+    } else {
+      const votoDe = (rol) => {
+        const entrada = Object.entries(miembros).find(
+          ([, m]) => m.role === rol,
+        );
 
-    if (empatadas.length === 1) {
-      ganadores[categoria] = empatadas[0];
-      return;
+        if (!entrada) return null;
+
+        const voto = votos.find((v) => v.user.toString() === entrada[0]);
+
+        return voto && opciones.includes(voto.option) ? voto.option : null;
+      };
+
+      ganador =
+        votoDe('Taster') ||
+        votoDe('Grandmaster') ||
+        opciones[Math.floor(Math.random() * opciones.length)];
     }
 
-    const votoGM = grandmaster
-      ? votos.find((v) => v.user.toString() === grandmaster.user.toString())
-      : null;
-
-    ganadores[categoria] =
-      votoGM && empatadas.includes(votoGM.option) ? votoGM.option : empatadas[0];
+    ganadores[categoria] = ganador;
+    pesos[categoria] = totales[ganador];
   });
 
-  return { ganadores, sinVotos };
+  return { ganadores, pesos, sinVotos };
+}
+
+async function calcularGanadores(formula, gremio) {
+  const usuarios = await User.find({
+    _id: { $in: gremio.members.map((m) => m.user) },
+  }).select('specialty');
+
+  const especialidades = {};
+  usuarios.forEach((u) => {
+    especialidades[u._id.toString()] = u.specialty;
+  });
+
+  const miembros = {};
+  gremio.members.forEach((m) => {
+    const clave = m.user.toString();
+    miembros[clave] = { role: m.role, specialty: especialidades[clave] };
+  });
+
+  const resultado = resolverGanadores(formula, miembros);
+
+  const dificultadReal =
+    formula.difficulty + resultado.pesos.ingredient + resultado.pesos.method;
+  const rareza =
+    dificultadReal * 10 +
+    resultado.pesos.ingredient * 3 +
+    resultado.pesos.method * 2;
+
+  return {
+    ...resultado,
+    dificultadReal: redondear(dificultadReal),
+    rareza: redondear(rareza),
+  };
+}
+
+async function usarVeto(id, { category, option }, usuario) {
+  const formula = await buscarFormula(id);
+  const gremio = await buscarGremio(formula.guild);
+
+  if (rolEnGremio(gremio, usuario._id) !== 'Taster') {
+    throw {
+      status: 403,
+      message: 'Solo el Taster Oficial del gremio puede usar el veto',
+    };
+  }
+
+  if (formula.state !== 'Closed') {
+    throw {
+      status: 400,
+      message: 'El veto solo se puede usar cuando la fórmula está en Closed',
+    };
+  }
+
+  if (formula.vetoUsed) {
+    throw { status: 400, message: 'El veto ya fue usado en esta fórmula' };
+  }
+
+  if (!CATEGORIAS[category].options.includes(option)) {
+    throw {
+      status: 400,
+      message: `La opción no es válida para la categoría ${category}`,
+    };
+  }
+
+  formula.vetoUsed = true;
+  formula.vetoDetails = {
+    category,
+    chosenOption: option,
+    by: usuario._id,
+  };
+
+  await formula.save();
+
+  return await poblar(formula);
+}
+
+async function cerrarSiVencida(formula) {
+  if (formula.state !== 'VotingOpen') return;
+
+  const limite = formula.endDate.getTime() + 24 * 60 * 60 * 1000;
+
+  if (limite > Date.now()) return;
+
+  formula.state = 'Closed';
+  formula.stateHistory.push({ state: 'Closed' });
+
+  await formula.save();
 }
 
 async function cambiarEstado(id, nuevoEstado, usuario) {
@@ -286,7 +441,8 @@ async function cambiarEstado(id, nuevoEstado, usuario) {
   }
 
   if (nuevoEstado === 'Distilled') {
-    const { ganadores, sinVotos } = calcularGanadores(formula, gremio);
+    const { ganadores, sinVotos, dificultadReal, rareza } =
+      await calcularGanadores(formula, gremio);
 
     if (sinVotos.length > 0) {
       throw {
@@ -297,6 +453,8 @@ async function cambiarEstado(id, nuevoEstado, usuario) {
 
     formula.finalPotion = {
       finalName: `${ganadores.ingredient} + ${ganadores.method} en ${ganadores.flask}`,
+      realDifficulty: dificultadReal,
+      rarity: rareza,
       winners: ganadores,
     };
   }
@@ -317,4 +475,6 @@ module.exports = {
   deleteFormula,
   votar,
   cambiarEstado,
+  usarVeto,
+  resolverGanadores,
 };

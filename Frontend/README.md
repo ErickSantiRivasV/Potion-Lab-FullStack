@@ -1,18 +1,80 @@
-# React + Vite
+# Potion Lab - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación web de gremios de alquimistas. Los gremios proponen fórmulas, los miembros votan por categoría y la fórmula avanza por `Proposal → VotingOpen → Closed → Distilled`. Las pociones destiladas quedan en el Grimorio.
 
-Currently, two official plugins are available:
+## URLs públicas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Frontend (Vercel): URL_DEL_FRONTEND
+- Backend (Render): https://backend-entrega-2.onrender.com
+- Swagger: https://backend-entrega-2.onrender.com/api-docs
 
-## React Compiler
+El backend está en un plan gratuito y se duerme: la primera petición puede tardar hasta un minuto.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+## Credenciales de prueba
 
-Note: This will impact Vite dev & build performances.
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Usuario | `ana@potionlab.test` | `alquimia123` |
+| Administrador | `erick@potionlab.test` | `alquimia123` |
 
-## Expanding the ESLint configuration
+## Tecnologías
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+React 19, Vite, Tailwind CSS 4, react-router-dom 7, Axios y React Compiler.
+
+## Instalación local
+
+Requisitos: Node 20 o superior y un backend en ejecución (local o el desplegado).
+
+```bash
+cd Frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+La aplicación queda en `http://localhost:5173`. Si cambias el `.env`, reinicia `npm run dev`.
+
+| Variable | Descripción |
+|---|---|
+| `VITE_API_URL` | URL del backend incluyendo `/api`. Local: `http://localhost:4000/api`. Producción: `https://backend-entrega-2.onrender.com/api` |
+
+Otros comandos: `npm run build`, `npm run preview`, `npm run lint`.
+
+## Despliegue en Vercel
+
+1. Importar el repositorio y usar `Frontend` como Root Directory.
+2. Definir `VITE_API_URL` con la URL del backend más `/api` (se lee en el build: si cambia, hay que redesplegar).
+3. `vercel.json` ya redirige todas las rutas a `index.html` para react-router.
+4. Copiar la URL de Vercel en `FRONTEND_URL` del backend y redesplegarlo.
+
+## Arquitectura
+
+- `src/api/axios.js`: cliente Axios con `VITE_API_URL`, interceptor que adjunta el JWT y limpia la sesión en 401.
+- `src/context/AuthContext.jsx`: estado global de sesión (login, registro, logout, verificación con `/auth/me`).
+- `src/components/auth/ProtectedRoute.jsx`: protege rutas y valida el rol.
+- `src/services/`: una capa por recurso (`authService`, `guildService`, `formulaService`, `userService`).
+- `src/utils/mappers.js`: traduce las respuestas del backend al formato de la interfaz.
+- `src/pages/`: vistas. Cada una maneja estados de carga, error y vacío.
+
+## Roles y permisos
+
+- Usuario: ver y crear gremios, unirse, proponer fórmulas según su rol de gremio, votar.
+- Grandmaster del gremio o administrador: editar y eliminar el gremio, cambiar roles de miembros.
+- Creador, Grandmaster, Senior Alchemist o administrador: cambiar el estado de una fórmula.
+- Taster Oficial: veto una vez por fórmula en estado `Closed`.
+- Administrador: ruta `/admin` con listado y eliminación de usuarios.
+
+## Mapa de endpoints
+
+Todos bajo `/api` y con `Authorization: Bearer <token>`, salvo registro y login.
+
+| Recurso | Endpoints |
+|---|---|
+| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
+| Usuarios (admin) | `GET /users`, `GET /users/:id`, `PUT /users/:id`, `DELETE /users/:id` |
+| Gremios | `GET /guilds`, `POST /guilds`, `GET /guilds/:id`, `PUT /guilds/:id`, `DELETE /guilds/:id` |
+| Membresía | `POST /guilds/:id/join`, `POST /guilds/:id/leave`, `PATCH /guilds/:id/members/:userId/role` |
+| Fórmulas | `GET /formulas`, `POST /formulas`, `GET /formulas/:id`, `PUT /formulas/:id`, `DELETE /formulas/:id` |
+| Votación | `POST /formulas/:id/vote`, `PATCH /formulas/:id/state`, `POST /formulas/:id/veto` |
+
+El detalle de cuerpos y respuestas está en el README del backend y en Swagger.

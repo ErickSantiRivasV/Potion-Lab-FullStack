@@ -7,9 +7,11 @@ Monorepo de la Entrega 3 de Ingeniería Web.
 
 ## URLs públicas
 
-- Frontend: URL_DEL_FRONTEND
+- Frontend: https://potion-lab-beryl.vercel.app
 - Backend: https://backend-entrega-2.onrender.com
 - Swagger: https://backend-entrega-2.onrender.com/api-docs
+
+El backend está en un plan gratuito y se duerme: la primera petición puede tardar hasta un minuto.
 
 ## Credenciales de prueba
 
